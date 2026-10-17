@@ -51,13 +51,32 @@ jobs:
         rm -rf KernelSU
         rm -rf drivers/kernelsu
         
-        # Prawidłowy, kompletny i nienaruszony adres URL skryptu instalacyjnego
+        # Twój nienaruszony, prawidłowy link pobierający oficjalny instalator
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
         
-        # WYCZYSZCZENIE HAKÓW DLA CZYSTEGO OC: Odpalamy procedurę sprzątającą setup.sh,
-        # co usuwa wstrzyknięcia KernelSU z plików input.c / exec.c i pozwala zbudować samo podkręcone jądro.
-        cd KernelSU && bash kernel/setup.sh --cleanup && cd ..
-        echo "CONFIG_KSU=n" >> arch/arm64/configs/radioactive_ksu_defconfig
+        # SKUMULOWANE UTWORZENIE POPRAWEK DLA PEŁNEJ INTEGRACJI KERNELSU:
+        
+        # 1. Zabezpieczenie ścieżki i wymuszenie powrotu do głównego katalogu roboczego workflow
+        cd $GITHUB_WORKSPACE
+        
+        # 2. Likwidacja symlinku i zastąpienie go fizycznymi plikami źródłowymi (naprawa izolacji O=out)
+        rm -f drivers/kernelsu
+        cp -r KernelSU/kernel drivers/kernelsu
+        
+        # 3. Przeniesienie i wymuszenie reguły kompilacji statycznej jądra na sam początek drivers/Makefile
+        sed -i '/obj-$(CONFIG_KSU) += kernelsu\//d' drivers/Makefile
+        sed -i '1i\obj-y += kernelsu/' drivers/Makefile
+        
+        # 4. Usunięcie błędu relokacji Clanga (-fPIC / -fpie) wewnątrz odizolowanego folderu out/
+        echo "subdir-ccflags-y += -fno-pic -fno-pie" >> drivers/kernelsu/Makefile
+        echo "KBUILD_CFLAGS += -fno-pic -fno-pie" >> drivers/kernelsu/Makefile
+        echo "KBUILD_AFLAGS += -fno-pic -fno-pie" >> drivers/kernelsu/Makefile
+        
+        # 5. Bezpieczne wymuszenie flagi konfiguracji bez używania mechanizmu KPROBES
+        echo "CONFIG_KSU=y" >> arch/arm64/configs/radioactive_ksu_defconfig
+        echo "CONFIG_KPROBES=n" >> arch/arm64/configs/radioactive_ksu_defconfig
+        echo "CONFIG_HAVE_KPROBES=n" >> arch/arm64/configs/radioactive_ksu_defconfig
+        echo "CONFIG_KPROBE_EVENTS=n" >> arch/arm64/configs/radioactive_ksu_defconfig
         
         export PATH=$(pwd)/proton-clang/bin/:$PATH
         make $KERNEL_CMDLINE $KERNEL_DEFCONFIG CC="ccache clang"
