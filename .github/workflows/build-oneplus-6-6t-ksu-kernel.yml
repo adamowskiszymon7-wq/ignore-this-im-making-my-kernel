@@ -52,22 +52,15 @@ jobs:
         rm -rf drivers/kernelsu
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
         
-        # UTWORZENIE METODY NAPRAWCZEJ DLA LINKERA I BŁĘDU PIC/PIE
-        # 1. Zamieniamy relatywny symlink na fizyczny katalog z pełnymi plikami źródłowymi
-        rm -f drivers/kernelsu
-        cp -r KernelSU/kernel drivers/kernelsu
+        # POPRAWKA POZYCJI W DRIVERS/MAKEFILE:
+        # 1. Usuwamy błędny wpis dopisany przez setup.sh na samym końcu pliku drivers/Makefile
+        sed -i '/obj-$(CONFIG_KSU) += kernelsu\//d' drivers/Makefile
         
-        # 2. Wstrzykujemy poprawne przypisanie do drivers/Makefile na odpowiedniej pozycji struktury obj-y
-        sed -i '/obj-y/a obj-y += kernelsu/' drivers/Makefile
+        # 2. Wstrzykujemy regułę kompilacji na sam początek drivers/Makefile (w pierwszej linii),
+        # dzięki czemu silnik Kbuild i make out poprawnie zbudują obiekty statyczne .o dla KernelSU
+        sed -i '1i\obj-$(CONFIG_KSU) += kernelsu/' drivers/Makefile
         
-        # 3. ROZWIĄZANIE BŁĘDU -fPIC / RECOMPILATION:
-        # Wymuszamy, aby podkatalog KernelSU budował się z flagami statycznymi jądra arm64
-        # Zapobiega to błędnej interpretacji kodu przez kompilator w odizolowanym folderze out
-        echo "CFLAGS_REMOVE_apk.o \+= -fpie -fPIE" >> drivers/kernelsu/Makefile
-        echo "CFLAGS_apk.o \+= -fno-pic -fno-pie" >> drivers/kernelsu/Makefile
-        echo "ccflags-y \+= -fno-pic -fno-pie" >> drivers/kernelsu/Makefile
-        
-        # 4. Włączenie flagi KSU w konfiguracji jądra
+        # 3. Dodanie flagi konfiguracji do defconfig
         echo "CONFIG_KSU=y" >> arch/arm64/configs/radioactive_ksu_defconfig
         
         export PATH=$(pwd)/proton-clang/bin/:$PATH
