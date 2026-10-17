@@ -23,7 +23,7 @@ jobs:
       KERNEL_CMDLINE: "ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- O=out"
     steps:
     - name: Checkout
-      uses: actions/checkout@v4 # Bezpieczna migracja na v4 dla czystych logów na Node 20
+      uses: actions/checkout@v4
       with:
         submodules: 'true'
         fetch-depth: 100
@@ -52,8 +52,7 @@ jobs:
         rm -rf drivers/kernelsu
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
         
-        # FIX: Te dwie linie naprawiają pomijanie podfolderu KernelSU na starszym jądrze 4.9
-        # Wstrzykujemy komendy na sam początek plików strukturalnych, ignorując ograniczenia instalatora KSU
+        # Wstrzyknięcie kompilacji podfolderu KernelSU na sam początek plików strukturalnych starszego jądra 4.9
         sed -i '1i\obj-$(CONFIG_KSU) += kernelsu/' drivers/Makefile
         sed -i '/menu "Device Drivers"/a \source "drivers/kernelsu/Kconfig"' drivers/Kconfig
         
