@@ -52,15 +52,11 @@ jobs:
         rm -rf drivers/kernelsu
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
         
-        # POPRAWKA POZYCJI W DRIVERS/MAKEFILE:
-        # 1. Usuwamy błędny wpis dopisany przez setup.sh na samym końcu pliku drivers/Makefile
-        sed -i '/obj-$(CONFIG_KSU) += kernelsu\//d' drivers/Makefile
-        
-        # 2. Wstrzykujemy regułę kompilacji na sam początek drivers/Makefile (w pierwszej linii),
-        # dzięki czemu silnik Kbuild i make out poprawnie zbudują obiekty statyczne .o dla KernelSU
+        # 1 LINII POPRAWKI: Przenosimy błędnie ulokowaną regułę na samą górę pliku drivers/Makefile
+        # To zmusza silnik Kbuild do bezwarunkowego skompilowania kodu KernelSU do plików obiektowych .o
         sed -i '1i\obj-$(CONFIG_KSU) += kernelsu/' drivers/Makefile
         
-        # 3. Dodanie flagi konfiguracji do defconfig
+        # Automatyczne zaaplikowanie flagi KSU do konfiguracji defconfig
         echo "CONFIG_KSU=y" >> arch/arm64/configs/radioactive_ksu_defconfig
         
         export PATH=$(pwd)/proton-clang/bin/:$PATH
