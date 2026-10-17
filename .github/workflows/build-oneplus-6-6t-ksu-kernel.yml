@@ -2,7 +2,7 @@ name: Build OnePlus 6 and 6t KernelSU Kernel
 on:
   workflow_dispatch:
   schedule:
-      # Każda sobota o 00:00.
+      # 每周周六00:00运行. 时间设置参考： http://crontab.guru
       - cron: '0 0 * * 6'
   push:
     branches:
@@ -23,7 +23,7 @@ jobs:
       KERNEL_CMDLINE: "ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu- CROSS_COMPILE_ARM32=arm-linux-gnueabi- O=out"
     steps:
     - name: Checkout
-      uses: actions/checkout@v4 # Zaktualizowano z v3 na v4 dla pełnej stabilności środowiska Node.js 20
+      uses: actions/checkout@v4 # Bezpieczna migracja na v4 dla czystych logów na Node 20
       with:
         submodules: 'true'
         fetch-depth: 100
@@ -51,6 +51,12 @@ jobs:
         rm -rf KernelSU
         rm -rf drivers/kernelsu
         curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash -s main
+        
+        # FIX: Te dwie linie naprawiają pomijanie podfolderu KernelSU na starszym jądrze 4.9
+        # Wstrzykujemy komendy na sam początek plików strukturalnych, ignorując ograniczenia instalatora KSU
+        sed -i '1i\obj-$(CONFIG_KSU) += kernelsu/' drivers/Makefile
+        sed -i '/menu "Device Drivers"/a \source "drivers/kernelsu/Kconfig"' drivers/Kconfig
+        
         export PATH=$(pwd)/proton-clang/bin/:$PATH
         echo "CONFIG_KSU=y" >> arch/arm64/configs/radioactive_ksu_defconfig
         make $KERNEL_CMDLINE $KERNEL_DEFCONFIG CC="ccache clang"
